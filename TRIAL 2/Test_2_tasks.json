@@ -1,0 +1,50 @@
+[
+  {
+    "id": 1776957549311,
+    "title": "hello",
+    "status": "done"
+  }
+]
+
+// ============================================================
+// Task 3 - SQL Performance Review Answers
+// ============================================================
+// Q1 - Identify the issue:
+// The code has an N+1 query problem.
+// - Query 1 loads 50 posts.
+// - Then a loop runs 50 more queries (1 per post) to load each author.
+// This creates many database round trips, increases latency, and becomes slower
+// as the number of posts grows. The loop is also sequential (await in for-loop),
+// so each author query waits for the previous one to finish.
+//
+// Q2 - How to fix it:
+// Fetch posts and authors in one SQL query using JOIN.
+// This removes N extra queries and lets the database optimize the join plan.
+//
+// Corrected query/code example:
+// const postsWithAuthors = await db.query(
+//   `SELECT
+//      p.id,
+//      p.author_id,
+//      p.title,
+//      p.created_at,
+//      a.id AS author_id_ref,
+//      a.name AS author_name,
+//      a.email AS author_email
+//    FROM posts p
+//    JOIN authors a ON a.id = p.author_id
+//    ORDER BY p.created_at DESC
+//    LIMIT 50`
+// );
+//
+// return postsWithAuthors.map((row) => ({
+//   id: row.id,
+//   author_id: row.author_id,
+//   title: row.title,
+//   created_at: row.created_at,
+//   author: {
+//     id: row.author_id_ref,
+//     name: row.author_name,
+//     email: row.author_email,
+//   },
+// }));

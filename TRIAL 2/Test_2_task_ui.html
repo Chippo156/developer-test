@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Task Manager</title>
+  </head>
+  <body>
+    <h1>Task Manager</h1>
+
+    <form id="create-task-form">
+      <input
+        id="task-title"
+        type="text"
+        placeholder="Enter task title"
+        required
+      />
+      <button type="submit">Add Task</button>
+    </form>
+
+    <p id="status-message" aria-live="polite"></p>
+
+    <ul id="task-list"></ul>
+
+    <script>
+      const form = document.getElementById("create-task-form");
+      const taskTitleInput = document.getElementById("task-title");
+      const taskList = document.getElementById("task-list");
+      const statusMessage = document.getElementById("status-message");
+
+      async function requestJson(url, options = {}) {
+        const response = await fetch(url, options);
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(data.message || "Request failed");
+        }
+        return data;
+      }
+
+      function setMessage(message, isError) {
+        statusMessage.textContent = message || "";
+        statusMessage.style.color = isError ? "red" : "black";
+      }
+
+      function renderTasks(tasks) {
+        taskList.innerHTML = "";
+
+        if (!tasks.length) {
+          const emptyItem = document.createElement("li");
+          emptyItem.textContent = "No tasks yet.";
+          taskList.appendChild(emptyItem);
+          return;
+        }
+
+        tasks.forEach((task) => {
+          const item = document.createElement("li");
+
+          const title = document.createElement("span");
+          title.textContent = `${task.title} (${task.status}) `;
+          item.appendChild(title);
+
+          if (task.status !== "done") {
+            const doneButton = document.createElement("button");
+            doneButton.type = "button";
+            doneButton.textContent = "Mark done";
+            doneButton.addEventListener("click", async () => {
+              try {
+                await requestJson(`/tasks/${task.id}`, {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ status: "done" }),
+                });
+                setMessage("Task marked as done.", false);
+                await loadTasks();
+              } catch (error) {
+                setMessage(error.message, true);
+              }
+            });
+            item.appendChild(doneButton);
+          }
+
+          const deleteButton = document.createElement("button");
+          deleteButton.type = "button";
+          deleteButton.textContent = "Delete";
+          deleteButton.addEventListener("click", async () => {
+            try {
+              await requestJson(`/tasks/${task.id}`, { method: "DELETE" });
+              setMessage("Task deleted.", false);
+              await loadTasks();
+            } catch (error) {
+              setMessage(error.message, true);
+            }
+          });
+          item.appendChild(deleteButton);
+
+          taskList.appendChild(item);
+        });
+      }
+
+      async function loadTasks() {
+        try {
+          const data = await requestJson("/tasks");
+          renderTasks(Array.isArray(data.tasks) ? data.tasks : []);
+        } catch (error) {
+          setMessage(error.message, true);
+        }
+      }
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const title = taskTitleInput.value.trim();
+
+        if (!title) {
+          setMessage("Task title is required.", true);
+          return;
+        }
+
+        try {
+          await requestJson("/tasks", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ title }),
+          });
+          taskTitleInput.value = "";
+          setMessage("Task created.", false);
+          await loadTasks();
+        } catch (error) {
+          setMessage(error.message, true);
+        }
+      });
+
+      loadTasks();
+    </script>
+  </body>
+</html>
