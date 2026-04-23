@@ -3,7 +3,7 @@
 // Developer Candidate Test — Trial 2
 // ============================================================
 // Instructions:
-//   Run with: npm install && node server.js
+//   Run with: npm install && node Test_2_server.js
 //   Server starts on: http://localhost:3000
 // ============================================================
 
@@ -13,13 +13,28 @@ const path = require("path");
 
 const app = express();
 app.use(express.json());
+app.use(express.static(__dirname));
 
-const DB_FILE = path.join(__dirname, "tasks.json");
+const DB_FILE = path.join(__dirname, "Test_2_tasks.json");
 
 function loadTasks() {
   if (!fs.existsSync(DB_FILE)) return [];
   const raw = fs.readFileSync(DB_FILE, "utf-8");
-  return JSON.parse(raw);
+  const normalized = raw.replace(/^\uFEFF/, "").trim();
+
+  if (!normalized) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(normalized);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    console.error(
+      `Failed to parse tasks.json, using empty task list: ${error.message}`,
+    );
+    return [];
+  }
 }
 
 function saveTasks(tasks) {
